@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xmlns:context="http://www.springframework.org/schema/context" xmlns:tx="http://www.springframework.org/schema/tx"
+       xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd http://www.springframework.org/schema/context https://www.springframework.org/schema/context/spring-context.xsd http://www.springframework.org/schema/tx http://www.springframework.org/schema/tx/spring-tx.xsd">
+
+    <!--1.开启包扫描：spring整合mybatsi配置文件只扫描业务层-->
+    <context:component-scan base-package="com.health.service"/>
+
+    <!--2.读取db.properties文件-->
+    <context:property-placeholder location="classpath:db.properties"/>
+
+    <!--3.创建druid数据源-->
+    <bean id="druidDataSource" class="com.alibaba.druid.pool.DruidDataSource">
+        <property name="driverClassName" value="${jdbc.driver}"/>
+        <property name="url" value="${jdbc.url}"/>
+        <property name="username" value="${jdbc.username}"/>
+        <property name="password" value="${jdbc.password}"/>
+    </bean>
+
+    <!--4.创建 sqlSessionFactoryBean(生产SqlsessionFactory)：替代mybatis核心配置文件-->
+    <bean id="sqlSessionFactoryBean" class="org.mybatis.spring.SqlSessionFactoryBean">
+        <!--导入数据源-->
+        <property name="dataSource" ref="druidDataSource"/>
+        <!--给实体类取别名-->
+        <property name="typeAliasesPackage" value="com.health.pojo"/>
+        <!--加载mybatis映射文件*Mapper.xml-->
+        <property name="mapperLocations" value="classpath:mappers/*Mapper.xml"/>
+
+        <property name="configuration">
+            <!--使用configuration对象替代mybatis配置-->
+            <bean class="org.apache.ibatis.session.Configuration">
+                <!--日志记录：输出sql语句到控制台-->
+                <property name="logImpl" value="org.apache.ibatis.logging.stdout.StdOutImpl"/>
+            </bean>
+        </property>
+        <!--配置分页插件-->
+        <property name="plugins">
+            <array>
+                <bean class="com.github.pagehelper.PageInterceptor"/>
+            </array>
+        </property>
+    </bean>
+
+    <!--5.创建 MapperScannerConfigurer：优化UserDao userDao = sqlSession.getMapper()
+        作用：把mybatis创建的DAO接口实现类交给IOC容器管理：在需要使用的地方直接注入
+        直接UserDao userDao;加上AutoWire即可
+    -->
+    <bean id="mapperScannerConfigurer" class="org.mybatis.spring.mapper.MapperScannerConfigurer">
+        <!--扫描dao接口所在包：必须有-->
+        <property name="basePackage" value="com.health.dao"/>
+    </bean>
+
+
+    <!--二、spring事务管理-->
+    <!--1.IOC事务管理器-->
+    <bean id="dataSourceTransactionManager" class="org.springframework.jdbc.datasource.DataSourceTransactionManager">
+        <property name="dataSource" ref="druidDataSource"/>
+    </bean>
+    <!--2.开启事务注解驱动，注入dataSourceTransactionManager-->
+    <tx:annotation-driven transaction-manager="dataSourceTransactionManager"/>
+</beans>
